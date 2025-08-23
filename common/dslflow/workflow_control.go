@@ -8,14 +8,17 @@ import (
 
 const (
 	OnErrorIgnore OnErrorType = "ignore" //遇到错误时，忽略错误，继续执行，比如打日志，或者是发消息，错误就错误了
+
+	OnExitExit OnExitType = "exit"
 )
 
 type (
+	OnExitType  string
 	OnErrorType string
 	Control     struct {
 		When           string      `json:"when,omitempty"`            //执行的前提条件
 		OnError        OnErrorType `json:"on_error,omitempty"`        //如果出现执行错误了，是直接跳出，还是继续执行
-		OnExit         string      `json:"on_exit,omitempty"`         //是否执行完当前的Activity后，就直接返回，后续的则子流程
+		OnExit         OnExitType  `json:"on_exit,omitempty"`         //是否执行完当前的Activity后，就直接返回，后续的则子流程
 		Wait           string      `json:"wait,omitempty"`            //是否需要有等待的Channel
 		ExecutionOrder []string    `json:"execution_order,omitempty"` //执行顺序
 	}
@@ -106,11 +109,11 @@ func (c *Control) getPriority(item string, configOrder, defaultOrder map[string]
 }
 
 // 判断是否在执行后立即退出
-func (c *Control) shouldExitAfterExecute() bool {
+func (c *Control) shouldExitOnExecute() bool {
 	if c == nil {
 		return false // 默认不退出
 	}
-	return c.OnExit == "true"
+	return c.OnExit == OnExitExit
 }
 func (c *Control) shouldIgnoreOnError() bool {
 	if c == nil {

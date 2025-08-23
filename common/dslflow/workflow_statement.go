@@ -3,6 +3,7 @@ package dslflow
 import (
 	"context"
 	"fmt"
+	"github.com/magic-lib/go-plat-utils/goroutines"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 )
@@ -30,16 +31,17 @@ func (s *Statement) Execute(ctx context.Context, vars map[string]any) (map[strin
 		return vars, nil
 	}
 
-	var resultVars map[string]any
+	var resultVars = cloneMap(vars)
 	var retErr error
 	lo.ForEachWhile(activityExcByOrder, func(orderName string, index int) bool {
 		var err error
+		var resultVarsTemp map[string]any
 		if orderName == activity {
-			resultVars, err = s.Activity.Execute(ctx, vars)
+			resultVarsTemp, err = s.Activity.Execute(ctx, resultVars)
 		} else if orderName == sequence {
-			resultVars, err = s.Sequence.Execute(ctx, vars)
+			resultVarsTemp, err = s.Sequence.Execute(ctx, resultVars)
 		} else if orderName == parallel {
-			resultVars, err = s.Parallel.Execute(ctx, vars)
+			resultVarsTemp, err = s.Parallel.Execute(ctx, resultVars)
 		}
 		if err != nil {
 			if s.Control.shouldIgnoreOnError() {
@@ -48,6 +50,40 @@ func (s *Statement) Execute(ctx context.Context, vars map[string]any) (map[strin
 			retErr = multierr.Append(retErr, fmt.Errorf("activity %s execute failed: %w", orderName, err))
 			fmt.Printf("警告：节点执行出错但继续流程: %v\n", err)
 			return false
+		} else {
+			if len(resultVarsTemp) > 0 {
+				resultVars = lo.Assign(resultVars, resultVarsTemp)
+			}
+
+			if s.Control.shouldExitOnExecute() {
+				//后续流程异步执行
+				goroutines.GoAsync(func(params ...any) {
+					asyncCtx := context.Background()
+					var multiErrTemp error
+					indexTemp := params[0].(int)
+					newVarsTemp := params[1].(map[string]any)
+					activityExcByOrderTemp := params[2].([]string)
+					for j := indexTemp + 1; j < len(activityExcByOrderTemp); j++ {
+						var err error
+						var resultVarsTemp map[string]any
+						if orderName == activity {
+							resultVarsTemp, err = s.Activity.Execute(asyncCtx, newVarsTemp)
+						} else if orderName == sequence {
+							resultVarsTemp, err = s.Sequence.Execute(asyncCtx, newVarsTemp)
+						} else if orderName == parallel {
+							resultVarsTemp, err = s.Parallel.Execute(asyncCtx, newVarsTemp)
+						}
+						if err != nil {
+							multiErrTemp = multierr.Append(multiErrTemp, fmt.Errorf("activity %s execute failed: %w", orderName, err))
+						} else {
+							if len(resultVarsTemp) > 0 {
+								newVarsTemp = lo.Assign(newVarsTemp, resultVarsTemp)
+							}
+						}
+					}
+				}, index, resultVars, activityExcByOrder)
+				return false
+			}
 		}
 		return true
 	})

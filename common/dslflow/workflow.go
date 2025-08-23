@@ -3,9 +3,6 @@ package dslflow
 import (
 	"context"
 	"fmt"
-	"github.com/magic-lib/go-plat-utils/conv"
-	"github.com/samber/lo"
-	"github.com/tidwall/gjson"
 )
 
 type (
@@ -35,64 +32,69 @@ func (w *Workflow) Execute(ctx context.Context, args map[string]any) (map[string
 		return nil, fmt.Errorf("workflow execute failed: %w", err)
 	}
 
+	if len(w.Responses) > 0 {
+		//映射最终返回结果
+		resultVars = jsonPathReplace(resultVars, w.Responses, OverridePolicyForce)
+	}
+
 	return resultVars, nil
 }
 
-// 映射最终返回结果（根据 Responses 配置提取或转换变量）
-func (w *Workflow) mapFinalResponses(vars map[string]any) map[string]any {
-	if len(w.Responses) == 0 {
-		return vars // 无映射规则时直接返回所有变量
-	}
-
-	finalResult := make(map[string]any)
-	jsonStr := conv.String(vars) // 转为 JSON 便于路径提取
-
-	for targetKey, expr := range w.Responses {
-		exprStr, ok := expr.(string)
-		if ok {
-			// 支持 JSON 路径表达式（如 "user.name" 提取嵌套字段）
-			val := gjson.Get(jsonStr, exprStr)
-			if val.Exists() {
-				finalResult[targetKey] = val.Value()
-			} else {
-				finalResult[targetKey] = nil // 路径不存在时设为 nil
-			}
-		} else {
-			// 直接设置固定值（如常量、默认值）
-			finalResult[targetKey] = expr
-		}
-	}
-	return finalResult
-}
-
-// 执行单个活动节点
-func (s *Statement) executeActivity(ctx context.Context, vars map[string]any, pool activityPool) (map[string]any, error) {
-	// 从资源池获取活动配置（优先使用节点内的配置，其次从公共池查找）
-	activity := s.Activity
-	if activity == nil && s.Activity.Activity != "" {
-		activity = pool[s.Activity.Activity] // 从公共资源池查找
-	}
-	if activity == nil {
-		return vars, errors.New("activity config not found")
-	}
-
-	// 创建活动的上下文（继承全局变量）
-	activityVars := lo.Assign(vars, activity.Arguments) // 合并变量和活动参数
-	activityCtx := ctx
-
-	// 应用活动超时设置
-	if activity.Timeout > 0 {
-		var cancel context.CancelFunc
-		activityCtx, cancel = context.WithTimeout(ctx, activity.Timeout)
-		defer cancel()
-	}
-
-	// 执行活动并获取结果
-	resultMap, err := activity.Execute(activityCtx, newConcurrentMap(activityVars))
-	if err != nil {
-		return vars, fmt.Errorf("activity %s execute failed: %w", activity.Id, err)
-	}
-
-	// 合并活动结果到全局变量
-	return lo.Assign(vars, resultMap.Items()), nil
-}
+//// 映射最终返回结果（根据 Responses 配置提取或转换变量）
+//func (w *Workflow) mapFinalResponses(vars map[string]any) map[string]any {
+//	if len(w.Responses) == 0 {
+//		return vars // 无映射规则时直接返回所有变量
+//	}
+//
+//	finalResult := make(map[string]any)
+//	jsonStr := conv.String(vars) // 转为 JSON 便于路径提取
+//
+//	for targetKey, expr := range w.Responses {
+//		exprStr, ok := expr.(string)
+//		if ok {
+//			// 支持 JSON 路径表达式（如 "user.name" 提取嵌套字段）
+//			val := gjson.Get(jsonStr, exprStr)
+//			if val.Exists() {
+//				finalResult[targetKey] = val.Value()
+//			} else {
+//				finalResult[targetKey] = nil // 路径不存在时设为 nil
+//			}
+//		} else {
+//			// 直接设置固定值（如常量、默认值）
+//			finalResult[targetKey] = expr
+//		}
+//	}
+//	return finalResult
+//}
+//
+//// 执行单个活动节点
+//func (s *Statement) executeActivity(ctx context.Context, vars map[string]any, pool activityPool) (map[string]any, error) {
+//	// 从资源池获取活动配置（优先使用节点内的配置，其次从公共池查找）
+//	activity := s.Activity
+//	if activity == nil && s.Activity.Activity != "" {
+//		activity = pool[s.Activity.Activity] // 从公共资源池查找
+//	}
+//	if activity == nil {
+//		return vars, errors.New("activity config not found")
+//	}
+//
+//	// 创建活动的上下文（继承全局变量）
+//	activityVars := lo.Assign(vars, activity.Arguments) // 合并变量和活动参数
+//	activityCtx := ctx
+//
+//	// 应用活动超时设置
+//	if activity.Timeout > 0 {
+//		var cancel context.CancelFunc
+//		activityCtx, cancel = context.WithTimeout(ctx, activity.Timeout)
+//		defer cancel()
+//	}
+//
+//	// 执行活动并获取结果
+//	resultMap, err := activity.Execute(activityCtx, newConcurrentMap(activityVars))
+//	if err != nil {
+//		return vars, fmt.Errorf("activity %s execute failed: %w", activity.Id, err)
+//	}
+//
+//	// 合并活动结果到全局变量
+//	return lo.Assign(vars, resultMap.Items()), nil
+//}

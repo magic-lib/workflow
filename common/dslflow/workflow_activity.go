@@ -227,6 +227,5 @@ func (ac *Activity) exeDependsOn(ctx context.Context, inputParams map[string]any
 	if ac.DependsOn == nil {
 		return inputParams, nil
 	}
-
 	return ac.DependsOn.Execute(ctx, inputParams)
 }
