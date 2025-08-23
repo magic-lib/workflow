@@ -1,6 +1,7 @@
 package dslflow
 
 import (
+	"fmt"
 	"github.com/magic-lib/go-plat-utils/conv"
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/samber/lo"
@@ -44,23 +45,42 @@ func jsonPathReplace(param map[string]any, data map[string]any, policy OverrideP
 	}
 
 	jsonStr := conv.String(param)
-	var err error
+	var retErr, err error
 	for k, v := range data {
-		if policy == OverridePolicyForce {
-			jsonStr, err = sjson.Set(jsonStr, k, v)
-			continue
-		} else if policy == OverridePolicyFallback {
-			if !gjson.Get(jsonStr, k).Exists() {
-				jsonStr, err = sjson.Set(jsonStr, k, v)
-			}
-			continue
+		jsonStr, err = jsonPathReplaceOne(jsonStr, k, v, policy)
+		if err != nil {
+			retErr = err
 		}
 	}
-	if err != nil {
+	if retErr != nil {
 		return param
 	}
 
 	_ = conv.Unmarshal(jsonStr, &param)
 
 	return param
+}
+
+func jsonPathReplaceOne(jsonStr string, jsonPath string, data any, policy OverridePolicy) (string, error) {
+	if policy == "" {
+		policy = OverridePolicyForce
+	}
+	if policy == OverridePolicyForce {
+		jsonStrTemp, err := sjson.Set(jsonStr, jsonPath, data)
+		if err != nil {
+			return jsonStr, err
+		}
+		return jsonStrTemp, nil
+	} else if policy == OverridePolicyFallback {
+		if !gjson.Get(jsonStr, jsonPath).Exists() {
+			jsonStrTemp, err := sjson.Set(jsonStr, jsonPath, data)
+			if err != nil {
+				return jsonStr, err
+			}
+			return jsonStrTemp, nil
+		}
+		return jsonStr, nil
+	}
+
+	return jsonStr, fmt.Errorf("无效的覆盖策略: %s", policy)
 }

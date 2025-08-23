@@ -7,8 +7,6 @@ import (
 	"github.com/magic-lib/go-plat-utils/conv"
 	"github.com/magic-lib/go-plat-utils/crypto"
 	"github.com/samber/lo"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
 	"time"
 )
 
@@ -69,21 +67,8 @@ func (ac *Activity) mergeDefaultArguments(args map[string]any) map[string]any {
 		if item.OverridePolicy == "" {
 			item.OverridePolicy = OverridePolicyFallback //默认缺省覆盖
 		}
-
 		var err error
-		switch item.OverridePolicy {
-		case OverridePolicyForce:
-			// 强制覆盖：无论原参数是否存在都设置
-			jsonStr, err = sjson.Set(jsonStr, item.Key, item.Value)
-		case OverridePolicyFallback:
-			// 缺省覆盖：原参数不存在时设置默认值
-			if !gjson.Get(jsonStr, item.Key).Exists() {
-				jsonStr, err = sjson.Set(jsonStr, item.Key, item.Value)
-			}
-		default:
-			err = fmt.Errorf("无效的覆盖策略: %s", item.OverridePolicy)
-		}
-
+		jsonStr, err = jsonPathReplaceOne(jsonStr, item.Key, item.Value, item.OverridePolicy)
 		if err != nil {
 			fmt.Printf("警告：合并参数 key=%s 失败: %v\n", item.Key, err)
 		} else {
