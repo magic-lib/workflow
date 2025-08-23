@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	github.com/magic-lib/go-plat-cache v1.20250722.2
-	github.com/magic-lib/go-plat-utils v1.20250721.3-0.20250822015909-efa4c3ed9e66
+	github.com/magic-lib/go-plat-utils v1.20250721.3-0.20250823210943-ae5878b1c8da
 	github.com/orcaman/concurrent-map v1.0.0
 	github.com/orcaman/concurrent-map/v2 v2.0.1
 	github.com/samber/lo v1.51.0

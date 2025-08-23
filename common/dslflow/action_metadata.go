@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/magic-lib/go-plat-utils/cond"
 	"reflect"
 
 	"github.com/magic-lib/go-plat-utils/conv"
@@ -33,7 +34,7 @@ const (
 type (
 	// ActionMetadata 动作的元数据配置（集中管理所有描述性字段）
 	ActionMetadata struct {
-		Type                 ActionType     `yaml:"type" json:"type"`                                     // 动作类型：query/update
+		ActionType           ActionType     `yaml:"action_type" json:"action_type"`                       // 动作类型：query/update
 		Activity             string         `yaml:"activity" json:"activity"`                             // 活动名,对应执行的相应方法
 		Description          string         `yaml:"description" json:"description"`                       // 动作描述
 		RequiredArgumentKeys []string       `yaml:"required_argument_keys" json:"required_argument_keys"` // 必传参数键
@@ -136,6 +137,10 @@ func (am *ActionMetadata) executeAction(ctx context.Context, action ActionExecut
 // 查找缺失的必填参数
 func (am *ActionMetadata) findMissingRequiredArgs(arguments any) []string {
 	jsonStr := conv.String(arguments)
+	if !cond.IsJson(jsonStr) {
+		return nil
+	}
+
 	missing := make([]string, 0)
 
 	lo.ForEach(am.RequiredArgumentKeys, func(key string, _ int) {

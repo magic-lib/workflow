@@ -28,8 +28,8 @@ func (m *methodAdapter) ActionMetadata() *ActionMetadata {
 	return m.actionMeta
 }
 
-// ChangeActionMethod 将普通方法转换为ActionMethod
-func ChangeActionMethod[I, O any](method any) (ActionMethod, error) {
+// changeActionMethod 将普通方法转换为ActionMethod
+func changeActionMethod[I, O any](method any) (ActionMethod, error) {
 	if method == nil {
 		return nil, fmt.Errorf("method is nil")
 	}
@@ -47,22 +47,41 @@ func ChangeActionMethod[I, O any](method any) (ActionMethod, error) {
 		//断言
 		paramPtr, ok := param.(I)
 		if !ok {
-			return nil, fmt.Errorf("param is not %T", paramPtr)
+			var zero I
+			return nil, fmt.Errorf("param is not %T, not %T", paramPtr, reflect.TypeOf(zero).Name())
 		}
+		retData, err = methodFun(ctx, paramPtr)
 		retDataPtr, ok := retData.(O)
 		if !ok {
-			return nil, fmt.Errorf("retData is not %T", retDataPtr)
+			var zero O
+			return nil, fmt.Errorf("retData is %T, not %T", retDataPtr, reflect.TypeOf(zero).Name())
 		}
 		//调用方法
-		return methodFun(ctx, paramPtr)
+		return retData, err
 	}, nil
 }
 
 // ChangeActionInterface 转换为ActionInterface
-func ChangeActionInterface(ac *ActionMetadata, am ActionMethod) (ActionInterface, error) {
-	if ac == nil || am == nil {
+func ChangeActionInterface[I, O any](method any, ac *ActionMetadata) (ActionInterface, error) {
+	if ac == nil || method == nil {
 		return nil, fmt.Errorf("data or method is nil")
 	}
+	if ac.Activity == "" {
+		return nil, fmt.Errorf("activity name is empty")
+	}
+	if ac.ActionType == "" {
+		ac.ActionType = ActionTypeQuery
+	}
+
+	am, err := changeActionMethod[I, O](method)
+	if err != nil {
+		return nil, err
+	}
+	if ac.ArgumentType == nil {
+		var zero I
+		ac.ArgumentType = reflect.TypeOf(zero)
+	}
+
 	return &methodAdapter{
 		actionMeta: ac,
 		method:     am,
