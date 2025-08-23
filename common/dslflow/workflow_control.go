@@ -13,6 +13,7 @@ const (
 )
 
 type (
+	OrderType   string
 	OnExitType  string
 	OnErrorType string
 	Control     struct {
@@ -20,14 +21,14 @@ type (
 		OnError        OnErrorType `yaml:"on_error" json:"on_error,omitempty"`               //如果出现执行错误了，是直接跳出，还是继续执行
 		OnExit         OnExitType  `yaml:"on_exit" json:"on_exit,omitempty"`                 //是否执行完当前的Activity后，就直接返回，后续的则子流程
 		Wait           string      `yaml:"wait" json:"wait,omitempty"`                       //是否需要有等待的Channel
-		ExecutionOrder []string    `yaml:"execution_order" json:"execution_order,omitempty"` //执行顺序
+		ExecutionOrder []OrderType `yaml:"execution_order" json:"execution_order,omitempty"` //执行顺序
 	}
 )
 
 const (
-	activity = "activity"
-	sequence = "sequence"
-	parallel = "parallel"
+	activity OrderType = "activity"
+	sequence OrderType = "sequence"
+	parallel OrderType = "parallel"
 )
 
 // 检查控制条件是否满足（简化实现，实际可集成表达式引擎）
@@ -47,16 +48,16 @@ func (c *Control) checkControlCondition(vars map[string]any) (bool, error) {
 }
 
 // 解析执行顺序，返回优先级最高的字段类型
-func (c *Control) resolveExecutionOrder(stmt *Statement) []string {
+func (c *Control) resolveExecutionOrder(stmt *Statement) []OrderType {
 	// 1. 定义所有可能的元素及其默认优先级（数字越小优先级越高）
-	defaultOrder := map[string]int{
+	defaultOrder := map[OrderType]int{
 		activity: 1,
 		sequence: 2,
 		parallel: 3,
 	}
 
 	// 2. 处理用户配置的 ExecutionOrder，覆盖默认优先级
-	configOrder := make(map[string]int)
+	configOrder := make(map[OrderType]int)
 	if len(c.ExecutionOrder) > 0 {
 		for idx, item := range c.ExecutionOrder {
 			// 只处理合法值（过滤无效配置）
@@ -67,7 +68,7 @@ func (c *Control) resolveExecutionOrder(stmt *Statement) []string {
 	}
 
 	// 3. 收集当前 Statement 中已配置的字段
-	availableItems := make([]string, 0)
+	availableItems := make([]OrderType, 0)
 	if stmt.Activity != nil {
 		availableItems = append(availableItems, activity)
 	}
@@ -101,7 +102,7 @@ func (c *Control) resolveExecutionOrder(stmt *Statement) []string {
 }
 
 // 获取字段的最终优先级（优先使用配置，无配置则用默认）
-func (c *Control) getPriority(item string, configOrder, defaultOrder map[string]int) int {
+func (c *Control) getPriority(item OrderType, configOrder, defaultOrder map[OrderType]int) int {
 	if p, ok := configOrder[item]; ok {
 		return p
 	}

@@ -33,7 +33,7 @@ func (s *Statement) Execute(ctx context.Context, vars map[string]any) (map[strin
 
 	var resultVars = cloneMap(vars)
 	var retErr error
-	lo.ForEachWhile(activityExcByOrder, func(orderName string, index int) bool {
+	lo.ForEachWhile(activityExcByOrder, func(orderName OrderType, index int) bool {
 		var err error
 		var resultVarsTemp map[string]any
 		if orderName == activity {
@@ -62,7 +62,7 @@ func (s *Statement) Execute(ctx context.Context, vars map[string]any) (map[strin
 					var multiErrTemp error
 					indexTemp := params[0].(int)
 					newVarsTemp := params[1].(map[string]any)
-					activityExcByOrderTemp := params[2].([]string)
+					activityExcByOrderTemp := params[2].([]OrderType)
 					for j := indexTemp + 1; j < len(activityExcByOrderTemp); j++ {
 						var err error
 						var resultVarsTemp map[string]any
