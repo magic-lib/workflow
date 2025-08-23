@@ -3,6 +3,7 @@ package dslflow
 import (
 	"fmt"
 	"github.com/magic-lib/go-plat-utils/conv"
+	"github.com/magic-lib/go-plat-utils/templates"
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/samber/lo"
 	"github.com/tidwall/gjson"
@@ -83,4 +84,15 @@ func jsonPathReplaceOne(jsonStr string, jsonPath string, data any, policy Overri
 	}
 
 	return jsonStr, fmt.Errorf("无效的覆盖策略: %s", policy)
+}
+
+func replaceAllByBindings(args any, bindings map[string]any) (any, error) {
+	argsMapList := conv.KeyListFromMap(bindings)
+	tmp := templates.NewTemplate(conv.String(args))
+	allParamStrRet, err := tmp.Replace(argsMapList)
+	if err != nil {
+		return args, fmt.Errorf("ReplaceAllByBindings: %w", err)
+	}
+	_ = conv.Unmarshal(allParamStrRet, args)
+	return args, nil
 }

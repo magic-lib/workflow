@@ -149,11 +149,9 @@ func (ac *Activity) createResponse(requestParams any, retData any) map[string]an
 
 // Execute 执行动作主逻辑：合并参数→执行依赖→执行主动作→合并结果
 func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[string]any, error) {
-	inputParams := cloneMap(args)
+	inputParams := ac.makeInputMap(args)
 
-	// 1. 合并默认参数到输入参数
-	inputParams = ac.mergeDefaultArguments(inputParams)
-
+	// 0、获取当前活动的所有参数
 	execCtx := ctx
 	if ac.Timeout > 0 {
 		var cancel context.CancelFunc
@@ -167,7 +165,7 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 		return inputParams, fmt.Errorf("依赖执行失败: %w", err)
 	}
 
-	// TODO 3. 合并参数
+	// 3. 合并参数
 	if len(ac.Arguments) > 0 {
 		depParams = jsonPathReplace(depParams, ac.Arguments, OverridePolicyForce)
 	}
@@ -228,4 +226,25 @@ func (ac *Activity) exeDependsOn(ctx context.Context, inputParams map[string]any
 		return inputParams, nil
 	}
 	return ac.DependsOn.Execute(ctx, inputParams)
+}
+
+func (ac *Activity) makeInputMap(arguments map[string]any) map[string]any {
+	args := cloneMap(arguments)
+
+	//2、将是自己id的参数覆盖进来
+	if ac.Id != "" {
+		if oneParam, ok := args[ac.Id]; ok {
+			if oneParamMap, ok1 := oneParam.(map[string]any); ok1 {
+				for k, v := range oneParamMap {
+					args[k] = v
+				}
+			}
+		}
+	}
+
+	// 本身的参数列表是否包含
+	//3、activity中自定义进行覆盖，主要是将前面流程的参数和返回值加到里面
+	args = ac.mergeDefaultArguments(args)
+
+	return args
 }
