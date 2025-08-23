@@ -28,13 +28,13 @@ type (
 		Id               string             `yaml:"id" json:"id,omitempty"`                     // 唯一标识，用于区分多个action
 		Activity         string             `yaml:"activity" json:"activity,omitempty"`         // 活动名,绑定ActionMetadata里的方法
 		DefaultArguments []KeyDefaultConfig `yaml:"default_arguments" json:"default_arguments"` // 按 key 配置的默认参数
-		//Arguments        map[string]any     `yaml:"arguments" json:"arguments"`                 // 输入参数map
-		//Responses        map[string]any     `yaml:"responses" json:"responses"`                 // 返回的参数map，可以自定义添加内容，比如命名转换
-		Hooks       LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`     // activity执行时的钩子程序
-		Timeout     time.Duration      `yaml:"timeout" json:"timeout"`           // 超时设置
-		DependsOn   *Statement         `yaml:"depends_on" json:"depends_on"`     // 依赖的服务
-		Cached      bool               `yaml:"cached" json:"cached"`             // 相同的参数请求在整个流程中可以重复使用结果
-		RetryPolicy *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"` // 重试策略
+		Arguments        map[string]any     `yaml:"arguments" json:"arguments"`                 // 输入参数map，可能有需要转义的字段，所以这里需要设置
+		Responses        map[string]any     `yaml:"responses" json:"responses"`                 // 返回的参数map，可以自定义添加内容，比如命名转换
+		Hooks            LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`               // activity执行时的钩子程序
+		Timeout          time.Duration      `yaml:"timeout" json:"timeout"`                     // 超时设置
+		DependsOn        *Statement         `yaml:"depends_on" json:"depends_on"`               // 依赖的服务
+		Cached           bool               `yaml:"cached" json:"cached"`                       // 相同的参数请求在整个流程中可以重复使用结果
+		RetryPolicy      *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`           // 重试策略
 	}
 
 	RetryPolicyConfig struct {
@@ -168,6 +168,9 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 	}
 
 	// TODO 3. 合并参数
+	if len(ac.Arguments) > 0 {
+		depParams = jsonPathReplace(depParams, ac.Arguments, OverridePolicyForce)
+	}
 
 	// 4. 执行主动作
 	execOneAction := func(ctx context.Context, param any) (any, error) {
@@ -210,6 +213,10 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 
 	if err != nil {
 		return depParams, fmt.Errorf("合并结果失败: %w", err)
+	}
+
+	if len(ac.Responses) > 0 {
+		retData = jsonPathReplace(retData, ac.Responses, OverridePolicyForce)
 	}
 
 	return retData, nil
