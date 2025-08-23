@@ -42,7 +42,7 @@ func jsonPathReplace(param map[string]any, data map[string]any, policy OverrideP
 		return param
 	}
 	if policy == "" {
-		policy = OverridePolicyForce
+		policy = overridePolicyForce
 	}
 
 	jsonStr := conv.String(param)
@@ -64,15 +64,15 @@ func jsonPathReplace(param map[string]any, data map[string]any, policy OverrideP
 
 func jsonPathReplaceOne(jsonStr string, jsonPath string, data any, policy OverridePolicy) (string, error) {
 	if policy == "" {
-		policy = OverridePolicyForce
+		policy = overridePolicyForce
 	}
-	if policy == OverridePolicyForce {
+	if policy == overridePolicyForce {
 		jsonStrTemp, err := sjson.Set(jsonStr, jsonPath, data)
 		if err != nil {
 			return jsonStr, err
 		}
 		return jsonStrTemp, nil
-	} else if policy == OverridePolicyFallback {
+	} else if policy == overridePolicyFallback {
 		if !gjson.Get(jsonStr, jsonPath).Exists() {
 			jsonStrTemp, err := sjson.Set(jsonStr, jsonPath, data)
 			if err != nil {

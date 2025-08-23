@@ -23,7 +23,7 @@ func (w *Workflow) Execute(ctx context.Context, args map[string]any) (map[string
 	}
 	if len(w.Variables) > 0 {
 		//自定义的进行覆盖
-		globalVars = jsonPathReplace(args, w.Variables, OverridePolicyForce)
+		globalVars = jsonPathReplace(args, w.Variables, overridePolicyForce)
 	}
 
 	// 2. 执行根节点流程
@@ -34,7 +34,7 @@ func (w *Workflow) Execute(ctx context.Context, args map[string]any) (map[string
 
 	if len(w.Responses) > 0 {
 		//映射最终返回结果
-		resultVars = jsonPathReplace(resultVars, w.Responses, OverridePolicyForce)
+		resultVars = jsonPathReplace(resultVars, w.Responses, overridePolicyForce)
 	}
 
 	return resultVars, nil

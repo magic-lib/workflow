@@ -13,8 +13,8 @@ import (
 type OverridePolicy string // 默认参数覆盖策略
 
 const (
-	OverridePolicyForce    OverridePolicy = "force"    // 强制覆盖
-	OverridePolicyFallback OverridePolicy = "fallback" // 缺省覆盖
+	overridePolicyForce    OverridePolicy = "force"    // 强制覆盖
+	overridePolicyFallback OverridePolicy = "fallback" // 缺省覆盖
 )
 
 var (
@@ -25,34 +25,28 @@ var (
 type (
 	// Activity 单个 action 配置
 	Activity struct {
-		Id               string             `yaml:"id" json:"id,omitempty"`                     // 唯一标识，用于区分多个action
-		Activity         string             `yaml:"activity" json:"activity,omitempty"`         // 活动名,绑定ActionMetadata里的方法
-		DefaultArguments []KeyDefaultConfig `yaml:"default_arguments" json:"default_arguments"` // 按 key 配置的默认参数
-		Arguments        map[string]any     `yaml:"arguments" json:"arguments"`                 // 输入参数map，可能有需要转义的字段，所以这里需要设置
-		Responses        map[string]any     `yaml:"responses" json:"responses"`                 // 返回的参数map，可以自定义添加内容，比如命名转换
-		Hooks            LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`               // activity执行时的钩子程序
-		Timeout          time.Duration      `yaml:"timeout" json:"timeout"`                     // 超时设置
-		DependsOn        *Statement         `yaml:"depends_on" json:"depends_on"`               // 依赖的服务
-		Cached           bool               `yaml:"cached" json:"cached"`                       // 相同的参数请求在整个流程中可以重复使用结果
-		RetryPolicy      *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`           // 重试策略
+		Id                       string             `yaml:"id" json:"id,omitempty"`                                       // 唯一标识，用于区分多个action
+		Activity                 string             `yaml:"activity" json:"activity,omitempty"`                           // 活动名,绑定ActionMetadata里的方法
+		DefaultArgumentsForce    map[string]any     `yaml:"default_arguments_force" json:"default_arguments_force"`       // 按 key 配置的默认参数强制覆盖
+		DefaultArgumentsFallback map[string]any     `yaml:"default_arguments_fallback" json:"default_arguments_fallback"` // 按 key 配置的默认参数缺省覆盖
+		Arguments                map[string]any     `yaml:"arguments" json:"arguments"`                                   // 输入参数map，可能有需要转义的字段，所以这里需要设置
+		Responses                map[string]any     `yaml:"responses" json:"responses"`                                   // 返回的参数map，可以自定义添加内容，比如命名转换
+		Hooks                    LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`                                 // activity执行时的钩子程序
+		Timeout                  int                `yaml:"timeout" json:"timeout"`                                       // 超时设置，单位为秒
+		DependsOn                *Statement         `yaml:"depends_on" json:"depends_on"`                                 // 依赖的服务
+		Cached                   bool               `yaml:"cached" json:"cached"`                                         // 相同的参数请求在整个流程中可以重复使用结果
+		RetryPolicy              *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`                             // 重试策略
 	}
 
 	RetryPolicyConfig struct {
 		MaximumAttempts int           `yaml:"maximum_attempts" json:"maximum_attempts"` // 最大尝试次数
 		InitialInterval time.Duration `yaml:"initial_interval" json:"initial_interval"` // 初始重试间隔
 	}
-
-	// KeyDefaultConfig 针对 map 中具体 key 的默认参数配置
-	KeyDefaultConfig struct {
-		Key            string         `yaml:"key" json:"key"`                         // 目标 key 路径（支持嵌套，如 "user.name"）
-		Value          any            `yaml:"value" json:"value"`                     // 默认值
-		OverridePolicy OverridePolicy `yaml:"override_policy" json:"override_policy"` // 策略：force/fallback
-	}
 )
 
 // mergeDefaultArguments 合并默认参数到输入参数
 func (ac *Activity) mergeDefaultArguments(args map[string]any) map[string]any {
-	if len(ac.DefaultArguments) == 0 || args == nil {
+	if (len(ac.DefaultArgumentsForce) == 0 && len(ac.DefaultArgumentsFallback) == 0) || args == nil {
 		return args
 	}
 
@@ -60,21 +54,30 @@ func (ac *Activity) mergeDefaultArguments(args map[string]any) map[string]any {
 	jsonStr := conv.String(args)
 	isModified := false
 
-	lo.ForEach(ac.DefaultArguments, func(item KeyDefaultConfig, _ int) {
-		if item.Key == "" {
-			return // 忽略空key配置
+	if len(ac.DefaultArgumentsForce) > 0 {
+		for k, v := range ac.DefaultArgumentsForce {
+			var err error
+			jsonStrTemp, err := jsonPathReplaceOne(jsonStr, k, v, overridePolicyForce)
+			if err != nil {
+				fmt.Printf("警告：合并参数 key=%s 失败: %v\n", k, err)
+			} else {
+				jsonStr = jsonStrTemp
+				isModified = true
+			}
 		}
-		if item.OverridePolicy == "" {
-			item.OverridePolicy = OverridePolicyFallback //默认缺省覆盖
+	}
+	if len(ac.DefaultArgumentsFallback) > 0 {
+		for k, v := range ac.DefaultArgumentsFallback {
+			var err error
+			jsonStrTemp, err := jsonPathReplaceOne(jsonStr, k, v, overridePolicyFallback)
+			if err != nil {
+				fmt.Printf("警告：合并参数 key=%s 失败: %v\n", k, err)
+			} else {
+				jsonStr = jsonStrTemp
+				isModified = true
+			}
 		}
-		var err error
-		jsonStr, err = jsonPathReplaceOne(jsonStr, item.Key, item.Value, item.OverridePolicy)
-		if err != nil {
-			fmt.Printf("警告：合并参数 key=%s 失败: %v\n", item.Key, err)
-		} else {
-			isModified = true
-		}
-	})
+	}
 
 	// 如果参数有修改，反序列化回map
 	if isModified {
@@ -155,7 +158,7 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 	execCtx := ctx
 	if ac.Timeout > 0 {
 		var cancel context.CancelFunc
-		execCtx, cancel = context.WithTimeout(ctx, ac.Timeout)
+		execCtx, cancel = context.WithTimeout(ctx, time.Duration(ac.Timeout)*time.Second)
 		defer cancel()
 	}
 
@@ -167,7 +170,7 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 
 	// 3. 合并参数
 	if len(ac.Arguments) > 0 {
-		depParams = jsonPathReplace(depParams, ac.Arguments, OverridePolicyForce)
+		depParams = jsonPathReplace(depParams, ac.Arguments, overridePolicyForce)
 	}
 
 	// 4. 执行主动作
@@ -214,7 +217,7 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 	}
 
 	if len(ac.Responses) > 0 {
-		retData = jsonPathReplace(retData, ac.Responses, OverridePolicyForce)
+		retData = jsonPathReplace(retData, ac.Responses, overridePolicyForce)
 	}
 
 	return retData, nil

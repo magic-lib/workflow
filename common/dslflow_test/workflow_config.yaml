@@ -3,9 +3,36 @@ variables:
   paasName: "66"
 root:
   activity:
-    id: del-cd-check
-    template: del-cd-check
+    id: del-cd
+    activity: del-cd
+    default_arguments:
+      - key: "project_name"
+        value: "kkkk"
+        override_policy: "force"
+    arguments:
+      paas_name: "zzz"
+    responses:
+      cd_id: "{{.outputs.cd_id}}"
+    hooks:
+      start:
+        activity: check-cd
+        default_arguments:
+          - key: "project_name"
+            value: "kkkk"
+            override_policy: "force"
+        arguments:
+          paas_name: "zzz"
+        responses:
+          cd_id: "{{.outputs.cd_id}}"
+    timeout: 600
+    depends_on:
+      - del-cd-recycling
+    cached: true
+    retry_policy:
+      maximum_attempts: 3
   control:
+    when: "true"
+    onerror: "ignore"
     onexit: "exit"
   parallel:
 
@@ -36,3 +63,13 @@ root:
         template: del-cd
 response:
   paas_name: "{{.variables.paasName}}"
+
+
+
+
+
+  Hooks            LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`               // activity执行时的钩子程序
+  Timeout          time.Duration      `yaml:"timeout" json:"timeout"`                     // 超时设置
+  DependsOn        *Statement         `yaml:"depends_on" json:"depends_on"`               // 依赖的服务
+  Cached           bool               `yaml:"cached" json:"cached"`                       // 相同的参数请求在整个流程中可以重复使用结果
+  RetryPolicy      *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`           // 重试策略
