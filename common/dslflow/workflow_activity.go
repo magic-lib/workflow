@@ -25,17 +25,16 @@ var (
 type (
 	// Activity 单个 action 配置
 	Activity struct {
-		Id                       string             `yaml:"id" json:"id,omitempty"`                                       // 唯一标识，用于区分多个action
-		Activity                 string             `yaml:"activity" json:"activity,omitempty"`                           // 活动名,绑定ActionMetadata里的方法
-		DefaultArgumentsForce    map[string]any     `yaml:"default_arguments_force" json:"default_arguments_force"`       // 按 key 配置的默认参数强制覆盖
-		DefaultArgumentsFallback map[string]any     `yaml:"default_arguments_fallback" json:"default_arguments_fallback"` // 按 key 配置的默认参数缺省覆盖
-		Arguments                map[string]any     `yaml:"arguments" json:"arguments"`                                   // 输入参数map，可能有需要转义的字段，所以这里需要设置
-		Responses                map[string]any     `yaml:"responses" json:"responses"`                                   // 返回的参数map，可以自定义添加内容，比如命名转换
-		Hooks                    LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`                                 // activity执行时的钩子程序
-		Timeout                  int                `yaml:"timeout" json:"timeout"`                                       // 超时设置，单位为秒
-		DependsOn                *Statement         `yaml:"depends_on" json:"depends_on"`                                 // 依赖的服务
-		Cached                   bool               `yaml:"cached" json:"cached"`                                         // 相同的参数请求在整个流程中可以重复使用结果
-		RetryPolicy              *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`                             // 重试策略
+		Id                string             `yaml:"id" json:"id,omitempty"`                       // 唯一标识，用于区分多个action
+		Activity          string             `yaml:"activity" json:"activity,omitempty"`           // 活动名,绑定ActionMetadata里的方法
+		ArgumentsForce    map[string]any     `yaml:"arguments_force" json:"arguments_force"`       // 按 key 配置的默认参数强制覆盖
+		ArgumentsFallback map[string]any     `yaml:"arguments_fallback" json:"arguments_fallback"` // 按 key 配置的默认参数缺省覆盖
+		Responses         map[string]any     `yaml:"responses" json:"responses"`                   // 返回的参数map，可以自定义添加内容，比如命名转换
+		Hooks             LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`                 // activity执行时的钩子程序
+		Timeout           int                `yaml:"timeout" json:"timeout"`                       // 超时设置，单位为秒
+		DependsOn         Sequence           `yaml:"depends_on" json:"depends_on"`                 // 依赖的服务
+		Cached            bool               `yaml:"cached" json:"cached"`                         // 相同的参数请求在整个流程中可以重复使用结果
+		RetryPolicy       *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`             // 重试策略
 	}
 
 	RetryPolicyConfig struct {
@@ -46,7 +45,7 @@ type (
 
 // mergeDefaultArguments 合并默认参数到输入参数
 func (ac *Activity) mergeDefaultArguments(args map[string]any) map[string]any {
-	if (len(ac.DefaultArgumentsForce) == 0 && len(ac.DefaultArgumentsFallback) == 0) || args == nil {
+	if (len(ac.ArgumentsForce) == 0 && len(ac.ArgumentsFallback) == 0) || args == nil {
 		return args
 	}
 
@@ -54,8 +53,8 @@ func (ac *Activity) mergeDefaultArguments(args map[string]any) map[string]any {
 	jsonStr := conv.String(args)
 	isModified := false
 
-	if len(ac.DefaultArgumentsForce) > 0 {
-		for k, v := range ac.DefaultArgumentsForce {
+	if len(ac.ArgumentsForce) > 0 {
+		for k, v := range ac.ArgumentsForce {
 			var err error
 			jsonStrTemp, err := jsonPathReplaceOne(jsonStr, k, v, overridePolicyForce)
 			if err != nil {
@@ -66,8 +65,8 @@ func (ac *Activity) mergeDefaultArguments(args map[string]any) map[string]any {
 			}
 		}
 	}
-	if len(ac.DefaultArgumentsFallback) > 0 {
-		for k, v := range ac.DefaultArgumentsFallback {
+	if len(ac.ArgumentsFallback) > 0 {
+		for k, v := range ac.ArgumentsFallback {
 			var err error
 			jsonStrTemp, err := jsonPathReplaceOne(jsonStr, k, v, overridePolicyFallback)
 			if err != nil {
@@ -169,9 +168,6 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 	}
 
 	// 3. 合并参数
-	if len(ac.Arguments) > 0 {
-		depParams = jsonPathReplace(depParams, ac.Arguments, overridePolicyForce)
-	}
 
 	// 4. 执行主动作
 	execOneAction := func(ctx context.Context, param any) (any, error) {

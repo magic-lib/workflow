@@ -54,7 +54,19 @@ func jsonPathReplace(param map[string]any, data map[string]any, policy OverrideP
 		}
 	}
 	if retErr != nil {
-		return param
+		//使用强制策略
+		paramMap := conv.KeyListFromMap(param)
+		dataMap := conv.KeyListFromMap(data)
+		for k, v := range dataMap {
+			if policy == overridePolicyForce {
+				paramMap[k] = v
+			} else if policy == overridePolicyFallback {
+				if _, ok := paramMap[k]; !ok {
+					paramMap[k] = v
+				}
+			}
+		}
+		return conv.MapFromKeyList(paramMap)
 	}
 
 	_ = conv.Unmarshal(jsonStr, &param)

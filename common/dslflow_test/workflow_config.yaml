@@ -5,10 +5,10 @@ root:
   activity:
     id: del-cd
     activity: del-cd
-    default_arguments:
-      - key: "project_name"
-        value: "kkkk"
-        override_policy: "force"
+    default_arguments_force:
+      project_name: "kkk"
+    default_arguments_fallbaack:
+      project_name: "mmm"
     arguments:
       paas_name: "zzz"
     responses:

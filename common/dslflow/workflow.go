@@ -9,8 +9,8 @@ type (
 	Workflow struct {
 		Variables map[string]any `yaml:"variables" json:"variables,omitempty"` //传入的所有变量参数，包括可以设置某一步的参数
 		Root      Statement      `yaml:"root" json:"root,omitempty"`           //启动的根目录
-		//Activities []*Activity    `yaml:"activities" json:"activities,omitempty"` //公共的activity资源，用于公共执行的部分,比如公共打日志
-		Responses map[string]any `yaml:"responses" json:"responses,omitempty"` //请求最终返回的内容
+		//Activities []*Activity    `yaml:"activities" json:"activities,omitempty"` //公共的activity资源，用于公共执行的部分,比如公共打日志，可以提高使用率
+		Responses map[string]any `yaml:"responses" json:"responses,omitempty"` //请求最终返回的结构
 	}
 )
 
@@ -23,7 +23,7 @@ func (w *Workflow) Execute(ctx context.Context, args map[string]any) (map[string
 	}
 	if len(w.Variables) > 0 {
 		//自定义的进行覆盖
-		globalVars = jsonPathReplace(args, w.Variables, overridePolicyForce)
+		globalVars = jsonPathReplace(args, w.Variables, overridePolicyFallback)
 	}
 
 	// 2. 执行根节点流程
