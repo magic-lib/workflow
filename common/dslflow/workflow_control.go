@@ -16,11 +16,11 @@ type (
 	OnExitType  string
 	OnErrorType string
 	Control     struct {
-		When           string      `json:"when,omitempty"`            //执行的前提条件
-		OnError        OnErrorType `json:"on_error,omitempty"`        //如果出现执行错误了，是直接跳出，还是继续执行
-		OnExit         OnExitType  `json:"on_exit,omitempty"`         //是否执行完当前的Activity后，就直接返回，后续的则子流程
-		Wait           string      `json:"wait,omitempty"`            //是否需要有等待的Channel
-		ExecutionOrder []string    `json:"execution_order,omitempty"` //执行顺序
+		When           string      `yaml:"when" json:"when,omitempty"`                       //执行的前提条件
+		OnError        OnErrorType `yaml:"on_error" json:"on_error,omitempty"`               //如果出现执行错误了，是直接跳出，还是继续执行
+		OnExit         OnExitType  `yaml:"on_exit" json:"on_exit,omitempty"`                 //是否执行完当前的Activity后，就直接返回，后续的则子流程
+		Wait           string      `yaml:"wait" json:"wait,omitempty"`                       //是否需要有等待的Channel
+		ExecutionOrder []string    `yaml:"execution_order" json:"execution_order,omitempty"` //执行顺序
 	}
 )
 

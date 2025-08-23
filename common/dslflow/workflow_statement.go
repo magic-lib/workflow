@@ -10,10 +10,10 @@ import (
 
 type (
 	Statement struct {
-		Control  Control   `json:"control,omitempty"`  //控制配置
-		Activity *Activity `json:"activity,omitempty"` //单个活动
-		Parallel Parallel  `json:"parallel,omitempty"` //并发情况
-		Sequence Sequence  `json:"sequence,omitempty"` //串行情况
+		Control  Control   `yaml:"control" json:"control,omitempty"`   //控制配置
+		Activity *Activity `yaml:"activity" json:"activity,omitempty"` //单个活动
+		Sequence Sequence  `yaml:"sequence" json:"sequence,omitempty"` //串行情况
+		Parallel Parallel  `yaml:"parallel" json:"parallel,omitempty"` //并发情况
 	}
 )
 

@@ -6,7 +6,9 @@ root:
     id: del-cd-check
     template: del-cd-check
   control:
-    onexit: "return|exit"
+    onexit: "exit"
+  parallel:
+
   sequence:
     - activity:
         id: del-cd-recycling
