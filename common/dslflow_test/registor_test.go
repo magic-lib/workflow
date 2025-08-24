@@ -80,9 +80,9 @@ func TestActivity(t *testing.T) {
 		ArgumentsFallback: map[string]any{
 			"age": 7,
 		},
-		Arguments: "{{ 	id  }}",
+		Arguments: "{{id}}",
 		Responses: map[string]any{
-			"name.age": "{{  name.age  }}",
+			"name.ages": "{{name.age}}",
 		},
 		//Hooks, LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`                // activity执行时的钩子程序
 		//Timeout           int                `yaml:"timeout" json:"timeout"`           // 超时设置，单位为秒
@@ -98,5 +98,7 @@ func TestActivity(t *testing.T) {
 		},
 		"age": 8,
 	})
+
+	fmt.Println("result app:")
 	fmt.Println(conv.String(retData), err)
 }

@@ -104,12 +104,12 @@ func jsonPathReplaceOne(jsonStr string, jsonPath string, data any, policy Overri
 func replaceAllByBindings(args any, bindings ...map[string]any) (any, error) {
 	tempStr := conv.String(args)
 	tempStr = trimTemplateSpaces(tempStr)
-	tmp := templates.NewTemplate(tempStr)
 
 	var allParamStrRet = tempStr
 	var err error
 	lo.ForEachWhile(bindings, func(binding map[string]any, _ int) bool {
 		argsMapList := conv.KeyListFromMap(binding)
+		tmp := templates.NewTemplate(allParamStrRet)
 		allParamStrRet, err = tmp.Replace(argsMapList)
 		if err != nil {
 			return false

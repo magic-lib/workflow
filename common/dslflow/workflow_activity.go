@@ -222,19 +222,22 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 		return depParams, fmt.Errorf("合并结果失败: %w", err)
 	}
 
+	//将所有参数合并进所有的对象中
+	overrideParams := []map[string]any{inputParams, depParams, args, retData}
 	if len(ac.Responses) > 0 {
-		retData = jsonPathReplace(retData, ac.Responses, overridePolicyForce)
+		newRetData := jsonPathReplace(retData, ac.Responses, overridePolicyForce)
 		// args 初始参数  depParams 合并depends以后的参数  retData 执行后返回的结果
-		actionReturn, err := replaceAllByBindings(&retData, depParams, retData, args)
+		actionReturn, err := replaceAllByBindings(&newRetData, overrideParams...)
 		if err != nil {
 			return nil, fmt.Errorf("参数替换失败: %w", err)
 		}
 		actionReturnMap := make(map[string]any)
 		_ = conv.Unmarshal(actionReturn, &actionReturnMap)
-		return actionReturnMap, nil
+		allParam := lo.Assign(overrideParams...)
+		return lo.Assign(allParam, actionReturnMap), nil
 	}
 
-	return retData, nil
+	return lo.Assign(overrideParams...), nil
 }
 
 // exeDependsOn 执行依赖的前置动作并合并结果
