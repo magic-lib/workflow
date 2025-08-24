@@ -116,7 +116,7 @@ func (ac *Activity) executeWithRetry(fn ActionMethod, ctx context.Context, argum
 				time.Sleep(backoff)
 			}
 		} else {
-			fmt.Printf("action %s, ret: %s", ac.Activity, conv.String(retData))
+			//fmt.Printf("action %s, ret: %s", ac.Activity, conv.String(retData))
 
 			return ac.createResponse(arguments, retData), nil // 成功执行
 		}
