@@ -85,12 +85,6 @@ func (am *ActionMetadata) checkResponses(retData any) error {
 	if len(missingFields) > 0 {
 		return fmt.Errorf("missing required response fields: %v", missingFields)
 	}
-
-	// 可以在这里添加类型检查逻辑
-	// if err := am.checkResponseTypes(retData); err != nil {
-	//     return err
-	// }
-
 	return nil
 }
 
@@ -155,8 +149,11 @@ func (am *ActionMetadata) findMissingRequiredArgs(arguments any) []string {
 // 查找缺失的必填返回字段
 func (am *ActionMetadata) findMissingRequiredFields(retData any) []string {
 	jsonStr := conv.String(retData)
-	missing := make([]string, 0)
+	if !cond.IsJson(jsonStr) {
+		return nil
+	}
 
+	missing := make([]string, 0)
 	lo.ForEach(am.Responses, func(config ReturnConfig, _ int) {
 		if config.Name == "" || !config.Required {
 			return
@@ -169,28 +166,3 @@ func (am *ActionMetadata) findMissingRequiredFields(retData any) []string {
 
 	return missing
 }
-
-// 可选：检查返回字段类型是否匹配（需要根据实际类型映射关系实现）
-// func (am *ActionMetadata) checkResponseTypes(retData any) error {
-// 	jsonStr := conv.String(retData)
-//
-// 	for _, config := range am.Responses {
-// 		if config.Name == "" || config.Type == "" {
-// 			continue
-// 		}
-//
-// 		value := gjson.Get(jsonStr, config.Name)
-// 		if !value.Exists() {
-// 			continue // 已经在required检查中处理
-// 		}
-//
-// 		// 根据config.Type检查value.Type()
-// 		// 这需要建立类型字符串到gjson.Type的映射关系
-// 		if !isTypeMatch(config.Type, value.Type()) {
-// 			return fmt.Errorf("response field %s type mismatch: expected %s, got %s",
-// 				config.Name, config.Type, value.Type())
-// 		}
-// 	}
-//
-// 	return nil
-// }

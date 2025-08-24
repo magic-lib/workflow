@@ -25,16 +25,17 @@ var (
 type (
 	// Activity 单个 action 配置
 	Activity struct {
-		Id                string             `yaml:"id" json:"id,omitempty"`                       // 唯一标识，用于区分多个action
-		Activity          string             `yaml:"activity" json:"activity,omitempty"`           // 活动名,绑定ActionMetadata里的方法
-		ArgumentsForce    map[string]any     `yaml:"arguments_force" json:"arguments_force"`       // 按 key 配置的默认参数强制覆盖
-		ArgumentsFallback map[string]any     `yaml:"arguments_fallback" json:"arguments_fallback"` // 按 key 配置的默认参数缺省覆盖
-		Responses         map[string]any     `yaml:"responses" json:"responses"`                   // 返回的参数map，可以自定义添加内容，比如命名转换
-		Hooks             LifecycleHooks     `yaml:"hooks" json:"hooks,omitempty"`                 // activity执行时的钩子程序
-		Timeout           int                `yaml:"timeout" json:"timeout"`                       // 超时设置，单位为秒
-		DependsOn         Sequence           `yaml:"depends_on" json:"depends_on"`                 // 依赖的服务
-		Cached            bool               `yaml:"cached" json:"cached"`                         // 相同的参数请求在整个流程中可以重复使用结果
-		RetryPolicy       *RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`             // 重试策略
+		Id                string            `yaml:"id" json:"id,omitempty"`                       // 唯一标识，用于区分多个action
+		Activity          string            `yaml:"activity" json:"activity,omitempty"`           // 活动名,绑定ActionMetadata里的方法
+		ArgumentsForce    map[string]any    `yaml:"arguments_force" json:"arguments_force"`       // 按 key 配置的默认参数强制覆盖
+		ArgumentsFallback map[string]any    `yaml:"arguments_fallback" json:"arguments_fallback"` // 按 key 配置的默认参数缺省覆盖
+		Arguments         string            `yaml:"arguments" json:"arguments"`                   // 定义调用action的特殊参数，比如action参数是数字，则在这里进行转换，支持输入模版 {{name.id}}
+		Responses         map[string]any    `yaml:"responses" json:"responses"`                   // 返回的参数map，可以自定义添加内容，比如命名转换
+		Hooks             LifecycleHooks    `yaml:"hooks" json:"hooks,omitempty"`                 // activity执行时的钩子程序
+		Timeout           int               `yaml:"timeout" json:"timeout"`                       // 超时设置，单位为秒
+		DependsOn         Sequence          `yaml:"depends_on" json:"depends_on"`                 // 依赖的服务
+		Cached            bool              `yaml:"cached" json:"cached"`                         // 相同的参数请求在整个流程中可以重复使用结果
+		RetryPolicy       RetryPolicyConfig `yaml:"retry_policy" json:"retry_policy"`             // 重试策略
 	}
 
 	RetryPolicyConfig struct {
@@ -115,6 +116,8 @@ func (ac *Activity) executeWithRetry(fn ActionMethod, ctx context.Context, argum
 				time.Sleep(backoff)
 			}
 		} else {
+			fmt.Printf("action %s, ret: %s", ac.Activity, conv.String(retData))
+
 			return ac.createResponse(arguments, retData), nil // 成功执行
 		}
 	}
@@ -167,7 +170,14 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 		return inputParams, fmt.Errorf("依赖执行失败: %w", err)
 	}
 
-	// 3. 合并参数
+	// 3. 合并生成执行参数
+	var actionParam any = depParams
+	if ac.Arguments != "" {
+		actionParam, err = replaceAllByBindings(ac.Arguments, depParams)
+		if err != nil {
+			return inputParams, fmt.Errorf("参数替换失败: %w", err)
+		}
+	}
 
 	// 4. 执行主动作
 	execOneAction := func(ctx context.Context, param any) (any, error) {
@@ -206,7 +216,7 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 
 		return actionResult, nil
 	}
-	retData, err := ac.executeWithRetry(execOneAction, execCtx, depParams)
+	retData, err := ac.executeWithRetry(execOneAction, execCtx, actionParam)
 
 	if err != nil {
 		return depParams, fmt.Errorf("合并结果失败: %w", err)
@@ -214,6 +224,14 @@ func (ac *Activity) Execute(ctx context.Context, args map[string]any) (map[strin
 
 	if len(ac.Responses) > 0 {
 		retData = jsonPathReplace(retData, ac.Responses, overridePolicyForce)
+		// args 初始参数  depParams 合并depends以后的参数  retData 执行后返回的结果
+		actionReturn, err := replaceAllByBindings(&retData, depParams, retData, args)
+		if err != nil {
+			return nil, fmt.Errorf("参数替换失败: %w", err)
+		}
+		actionReturnMap := make(map[string]any)
+		_ = conv.Unmarshal(actionReturn, &actionReturnMap)
+		return actionReturnMap, nil
 	}
 
 	return retData, nil

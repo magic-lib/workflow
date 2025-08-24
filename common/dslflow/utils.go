@@ -2,12 +2,15 @@ package dslflow
 
 import (
 	"fmt"
+	"github.com/magic-lib/go-plat-utils/cond"
 	"github.com/magic-lib/go-plat-utils/conv"
 	"github.com/magic-lib/go-plat-utils/templates"
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/samber/lo"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"reflect"
+	"regexp"
 )
 
 const (
@@ -98,13 +101,42 @@ func jsonPathReplaceOne(jsonStr string, jsonPath string, data any, policy Overri
 	return jsonStr, fmt.Errorf("无效的覆盖策略: %s", policy)
 }
 
-func replaceAllByBindings(args any, bindings map[string]any) (any, error) {
-	argsMapList := conv.KeyListFromMap(bindings)
-	tmp := templates.NewTemplate(conv.String(args))
-	allParamStrRet, err := tmp.Replace(argsMapList)
+func replaceAllByBindings(args any, bindings ...map[string]any) (any, error) {
+	tempStr := conv.String(args)
+	tempStr = trimTemplateSpaces(tempStr)
+	tmp := templates.NewTemplate(tempStr)
+
+	var allParamStrRet = tempStr
+	var err error
+	lo.ForEachWhile(bindings, func(binding map[string]any, _ int) bool {
+		argsMapList := conv.KeyListFromMap(binding)
+		allParamStrRet, err = tmp.Replace(argsMapList)
+		if err != nil {
+			return false
+		}
+		return true
+	})
 	if err != nil {
 		return args, fmt.Errorf("ReplaceAllByBindings: %w", err)
 	}
-	_ = conv.Unmarshal(allParamStrRet, args)
+	if cond.IsPointer(args) {
+		_ = conv.Unmarshal(allParamStrRet, args)
+		return args, nil
+	}
+
+	retInfo, ok := conv.ConvertForType(reflect.TypeOf(args), allParamStrRet)
+	if ok {
+		return retInfo, nil
+	}
 	return args, nil
+}
+
+// trimTemplateSpaces 去除{{后的空格和}}前的空格
+func trimTemplateSpaces(input string) string {
+	// 正则表达式解释：
+	// {{\s+  匹配{{后面跟一个或多个空白字符
+	// (\S.*?) 捕获非空白字符开始的内容（非贪婪模式）
+	// \s+}}  匹配一个或多个空白字符后面跟}}
+	re := regexp.MustCompile(`{{\s+(\S.*?)\s+}}`)
+	return re.ReplaceAllString(input, "{{$1}}")
 }

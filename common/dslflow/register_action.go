@@ -3,6 +3,7 @@ package dslflow
 import (
 	"context"
 	"fmt"
+	"github.com/magic-lib/go-plat-utils/conv"
 	cmapv2 "github.com/orcaman/concurrent-map/v2"
 	"reflect"
 	"runtime"
@@ -48,7 +49,14 @@ func changeActionMethod[I, O any](method any) (ActionMethod, error) {
 		paramPtr, ok := param.(I)
 		if !ok {
 			var zero I
-			return nil, fmt.Errorf("param is not %T, not %T", paramPtr, reflect.TypeOf(zero).Name())
+			actionParam, ok := conv.ConvertForType(reflect.TypeOf(zero), param)
+			if !ok {
+				return nil, fmt.Errorf("param is not %T, not %T", paramPtr, reflect.TypeOf(zero).Name())
+			}
+			paramPtr, ok = actionParam.(I)
+			if !ok {
+				return nil, fmt.Errorf("param is not %T", paramPtr)
+			}
 		}
 		retData, err = methodFun(ctx, paramPtr)
 		retDataPtr, ok := retData.(O)
