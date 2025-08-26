@@ -110,7 +110,7 @@ func replaceAllByBindings(args any, bindings ...map[string]any) (any, error) {
 	lo.ForEachWhile(bindings, func(binding map[string]any, _ int) bool {
 		argsMapList := conv.KeyListFromMap(binding)
 		tmp := templates.NewTemplate(allParamStrRet)
-		allParamStrRet, err = tmp.Replace(argsMapList)
+		allParamStrRet = tmp.Replace(argsMapList)
 		if err != nil {
 			return false
 		}

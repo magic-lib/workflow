@@ -18,6 +18,7 @@ type (
 	OnErrorType string
 	Control     struct {
 		When           string      `yaml:"when" json:"when,omitempty"`                       //执行的前提条件
+		DependsOn      []string    `yaml:"depends_on" json:"depends_on,omitempty"`           //新增依赖声明，主要是针对When中包含的依赖
 		OnError        OnErrorType `yaml:"onerror" json:"onerror,omitempty"`                 //如果出现执行错误了，是直接跳出，还是继续执行
 		OnExit         OnExitType  `yaml:"onexit" json:"onexit,omitempty"`                   //是否执行完当前的Activity后，就直接返回，后续的则子流程
 		Wait           string      `yaml:"wait" json:"wait,omitempty"`                       //是否需要有等待的Channel
@@ -36,6 +37,10 @@ func (c *Control) checkControlCondition(vars map[string]any) (bool, error) {
 	if c.When == "" {
 		return true, nil // 无条件时默认执行
 	}
+	//首先替换掉变量
+	//tmp := templates.NewTemplate(c.When)
+	//allParamStrRet, err := tmp.Replace(vars)
+
 	ruleEngine := ruleengine.NewEngineLogic()
 	retCheck, err := ruleEngine.RunString(c.When, vars)
 	if err != nil {

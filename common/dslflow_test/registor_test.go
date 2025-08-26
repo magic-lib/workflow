@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/magic-lib/go-plat-utils/conv"
+	"github.com/magic-lib/go-plat-utils/templates"
 	"github.com/magic-lib/workflow/common/dslflow"
 	"testing"
 )
@@ -101,4 +102,18 @@ func TestActivity(t *testing.T) {
 
 	fmt.Println("result app:")
 	fmt.Println(conv.String(retData), err)
+}
+
+func TestReplace(t *testing.T) {
+	argsMapList := map[string]any{
+		"aaa": map[string]any{
+			"ccc": 5,
+		},
+	}
+	allParamStrRet := "{{aaa}}{{aaa.ccc}}{{bbb}}"
+
+	tmp := templates.NewTemplate(allParamStrRet)
+	allParamStrRet = tmp.Replace(argsMapList)
+
+	fmt.Println(allParamStrRet)
 }
